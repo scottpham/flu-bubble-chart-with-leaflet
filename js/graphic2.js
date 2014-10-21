@@ -29,7 +29,10 @@ function render(width) {
  //leaflet stuff
 
     //make a map                        
-    var map = new L.Map("map", {center: [37.77, -122.42],zoom: 7}) //lat, long, not long, lat
+    var map = new L.Map("map", {
+        center: [37.77, -122.42],
+        zoom: 7,
+        scrollWheelZoom: false}) //lat, long, not long, lat
         .addLayer(new L.TileLayer("http://api.tiles.mapbox.com/v4/nbclocal.i9h78mch/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibmJjbG9jYWwiLCJhIjoiS3RIUzNQOCJ9.le_LAljPneLpb7tBcYbQXQ"));
 
     //add an svg to the overlay pane
@@ -40,13 +43,12 @@ function render(width) {
     queue()
         .defer(d3.json, "counties.json")
         .defer(d3.csv, "flu_percent_unused2.csv")
-        .defer(d3.csv, "2013_county.csv")
         .await(ready);
 
     var fluByCounty = {};
     var vacByCounty = {};
 
-    function ready(error, ca, flu, pop){
+    function ready(error, ca, flu){
 
         ////////a bunch of non geo related stuff//////
         //maps county names to flu percentage
@@ -72,7 +74,6 @@ function render(width) {
             function(d) {return vacByCounty[d.properties.name];})
 
         ////////end non geo related stuff////////
-
 
 
         //create a path to convert geojson to svg
@@ -239,9 +240,6 @@ function render(width) {
             var point = map.latLngToLayerPoint(new L.LatLng(y, x));
             this.stream.point(point.x, point.y);
         }
-
-        
-
 
     }//end of ready
 }//end of render
