@@ -122,6 +122,13 @@ function render(width) {
             else { return "N/A"}
             }
 
+        //define tip
+        var tip = d3.tip()
+            .attr("class", 'd3-tip')
+            .offset([-10, 0])
+            .html(function(d) { return "<p>" + d.properties.fullName + "</p><p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + vacByCounty[d.properties.name] + "</p>"});
+
+        g.call(tip);
         //circles
         g.append("g")
               .attr("class", "circles")
@@ -133,21 +140,8 @@ function render(width) {
             .style("fill", function(d){ 
                 return color(fluByCounty[d.properties.name]);
               })
-                .on("mouseover", function(d){ //tooltip
-                    div.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    div.html(d.properties.fullName + "<p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + vacByCounty[d.properties.name] + "</p>"
-
-                    )
-                        .style("left", (d3.event.pageX) + 10 + "px")
-                        .style("top", (d3.event.pageY - 30) + "px"); 
-                })
-                .on("mouseout", function(d) { 
-                    div.transition()
-                        .duration(500)
-                        .style("opacity", 0.0);
-                });  
+                .on("mouseover", tip.show)
+                .on("mouseout", tip.hide);  
 
 
 
@@ -164,6 +158,8 @@ function render(width) {
             var bounds = path.bounds(mapData),
                 topLeft = bounds[0],
                 bottomRight = bounds[1];
+
+            console.log(bounds);
 
             //set svg position
             svg.attr("width", bottomRight[0] - topLeft[0])
