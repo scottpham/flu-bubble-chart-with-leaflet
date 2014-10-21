@@ -1,16 +1,4 @@
-var pymChild = null,
-    mobileThreshold = 500, //set to 500 for testing
-    aspect_width = 4,
-    aspect_height = 10;
-
 var $map = $('#map');
-
-var margin = {
-    top: 10,
-    right: 10,
-    bottom: 10,
-    left: 20
-};
 
 var circleSize = 70;
 
@@ -77,14 +65,14 @@ function render(width) {
             .domain([.1, .2, .3, .4])
             .range(colorbrewer.Blues[4]);
             
+        //shorthand for accessing topo data    
         var mapData = topojson.feature(ca, ca.objects.subunits);
-
-        var mapDataObjects = topojson.feature(ca, ca.objects);
         //attach data to circle areas
         var areas = mapData.features.map(
             function(d) {return vacByCounty[d.properties.name];})
 
         ////////end non geo related stuff////////
+
 
 
         //create a path to convert geojson to svg
@@ -116,6 +104,9 @@ function render(width) {
             if (d) { return (d3.format(".1%"))(d) }
             else { return "N/A"}
             }
+
+        //format for # of vaccines
+        var commaFormat = d3.format(",f")
 
         //define tip
         var tip = d3.tip()
@@ -155,7 +146,7 @@ function render(width) {
             //define width of svg
             svgWidth = bottomRight[0] - topLeft[0];
 
-            console.log(svgWidth);
+            // console.log(svgWidth);
 
             //define circle size as a portion of svg width
             circleSize = 0.07 * svgWidth;
@@ -194,13 +185,13 @@ function render(width) {
         .domain([0, max]) //input data
         .range([0, width/4]); //height of the key
 
+    //define a second svg for the key and attach it to the map div
     var legend = d3.select("#map").append("svg")
         .attr("width", "300")
         .attr("height", "500")
         ;
 
-
-    //create group for color bar and append data
+    //create group for color bar and attach to second svg
     var colorBar = legend.append("g")
         .attr("class", "key")
         .attr("transform", "translate(60, 75)")
@@ -211,7 +202,6 @@ function render(width) {
             if (d[1] == null) d[1] = y.domain()[1];
             return d;
         }));
-
 
     //create color rects
     colorBar.enter()
@@ -255,209 +245,6 @@ function render(width) {
 
     }//end of ready
 }//end of render
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // d3 stuff
-
-    // var height = .88 * width;
-
-    // var circleSize = 0.065 * width;
-
-    // var  projection = d3.geo.mercator()
-    //     .scale(width*4)
-    //     .center([-124.19, 41.92]) //exact upper left of california according to latlong.net
-    //     .translate([margin.left,margin.top]);
-
-    // var path = d3.geo.path()
-    //     .projection(projection);
-
-    // var svg = d3.select("#map").append("svg")
-    //     .attr("width", width)
-    //     .attr("height", height);
-
-    // //global for console
-    // var myObj = {};
-
-    // queue()
-    //     .defer(d3.json, "counties.json")
-    //     .defer(d3.csv, "flu_percent_unused2.csv")
-    //     .defer(d3.csv, "2013_county.csv")
-    //     .await(ready);
-
-    // var fluByCounty = {};
-    // var vacByCounty = {};
-
-    // function ready(error, ca, flu, pop){
-
-        // //maps county names to flu percentage
-        // flu.forEach(function(d) { 
-        //     fluByCounty[d.county] = +d.percent_unused;});
-        
-        // //map county names to average vaccines
-        //  flu.forEach(function(d) {
-        //     vacByCounty[d.county] = +d.total;});
-
-        // mapData = topojson.feature(ca, ca.objects.subunits);
-        
-        // //max for color scale
-        // var max = d3.max(flu, function(d) { return +d.percent_unused; });
-
-        // //threshold scale for key and circles
-        // var color = d3.scale.threshold() //colorscale
-        //     .domain([.1, .2, .3, .4])
-        //     .range(colorbrewer.Blues[4]);
-            
-        // //attach data to circle areas
-        // var areas = mapData.features.map(
-        //     function(d) {return vacByCounty[d.properties.name];})
-
-        // //scale for circle
-        // var scale = d3.scale.sqrt()
-        //     .domain(d3.extent(areas))
-        //     .range([4, circleSize]);
-
-        //draw county shapes
-        // svg.selectAll(".subunit")
-        //       .data(mapData.features)
-        //     .enter().append("path")
-        //     .attr("class", function(d) { return "subunit " + d.properties.name; })
-        //     .attr("d", path);
-              // // get color from csv call
-              // .style("fill", function(d){ 
-              //   return color(fluByCounty[d.properties.name]);
-        
-              // });
-/*
-        //exterior border
-        svg.append("path")
-            .datum(topojson.mesh(ca, ca.objects.subunits, function(a, b) { return a === b;}))
-            .attr("d", path)
-            .attr("class", "exterior-boundary");
-
-        //tooltip declaration
-        var div = d3.select("#map").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0);
-
-        //format for tooltip
-        var percentFormat = function(d){
-            if (d) { return (d3.format(".1%"))(d) }
-            else { return "N/A"}
-            }
-
-        //circles
-        svg.append("g")
-              .attr("class", "circles")
-            .selectAll("circle")
-                  .data(topojson.feature(ca, ca.objects.subunits).features)
-                .enter().append("circle")
-                    .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
-                  .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); })
-            .style("fill", function(d){ 
-                return color(fluByCounty[d.properties.name]);
-              })
-                .on("mouseover", function(d){ //tooltip
-                    div.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    div.html(d.properties.fullName + "<p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + vacByCounty[d.properties.name] + "</p>"
-
-                    )
-                        .style("left", (d3.event.pageX) + 10 + "px")
-                        .style("top", (d3.event.pageY - 30) + "px"); 
-                })
-                .on("mouseout", function(d) { 
-                    div.transition()
-                        .duration(500)
-                        .style("opacity", 0.0);
-                });        
-
-    //key position encoding for legend
-    var y = d3.scale.linear()
-        .domain([0, max]) //input data
-        .range([0, width/4]); //height of the key
-
-
-    //create group for color bar and append data
-    var colorBar = svg.append("g")
-        .attr("class", "key")
-        .attr("transform", "translate(" + (.4 * width) + "," + margin.top * 2 + ")") //position w/in svg
-        .selectAll("rect")
-        .data(color.range().map(function(col) {
-            var d = color.invertExtent(col);
-            if (d[0] == null) d[0] = y.domain()[0];
-            if (d[1] == null) d[1] = y.domain()[1];
-            return d;
-        }));
-
-
-    //create color rects
-    colorBar.enter()
-        .append("rect")
-            .attr("width", 15)
-            .attr("y", function(d) { 
-                return y(d[0]); })
-            .attr("height", function(d) { return y(d[1]) - y(d[0]); })
-            .attr("fill", function(d) { return color(d[0]); });
-
-    //get array of legend domain
-    var colorDomain = color.domain();
-
-    var yAxis = d3.svg.axis()
-        .scale(y)
-        .orient("right")
-        .tickSize(16)
-        .tickValues([colorDomain[0], colorDomain[1], colorDomain[2], colorDomain[3]])
-        .tickFormat(percentFormat);
-
-    //console.log(format(max));
-
-    //add label
-    d3.select(".key")
-        .call(yAxis)
-        .append("text")
-        .attr("y", -5)
-        .attr("class", "label")
-        .text("Percent of Vaccine Left Over")
-        ;
-    //end of ready function
-    }
-
-    //send height to parent AFTER chart is built
-    if (pymChild) {
-        pymChild.sendHeightToParent();
-    }
-
-//end function render    
-}
-
-
 
 
 /*
