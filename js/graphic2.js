@@ -31,7 +31,7 @@ function draw_graphic(){
         $map.empty();
         var width = $map.width();
         render(width);
-        window.onresize = draw_graphic; //very important! the key to responsiveness
+        //window.onresize = draw_graphic; //very important! the key to responsiveness
     }
 }
 
@@ -84,11 +84,6 @@ function render(width) {
         var areas = mapData.features.map(
             function(d) {return vacByCounty[d.properties.name];})
 
-        //scale for circle
-        var scale = d3.scale.sqrt()
-            .domain(d3.extent(areas))
-            .range([5, circleSize]);
-
         ////////end non geo related stuff////////
 
 
@@ -129,14 +124,17 @@ function render(width) {
             .html(function(d) { return "<p>" + d.properties.fullName + "</p><p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + vacByCounty[d.properties.name] + "</p>"});
 
         g.call(tip);
+
+
+
         //circles
         g.append("g")
               .attr("class", "circles")
             .selectAll("circle")
                   .data(topojson.feature(ca, ca.objects.subunits).features)
                 .enter().append("circle")
-                    .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
-                  .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); })
+                  //   .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
+                  // .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); })
             .style("fill", function(d){ 
                 return color(fluByCounty[d.properties.name]);
               })
@@ -144,25 +142,32 @@ function render(width) {
                 .on("mouseout", tip.hide);  
 
 
-
-
-
-
-
         //fix on zoom
         map.on("viewreset", reset);
         reset();
 
-        //reposition SVG to cover the features
+        ///////reposition SVG to cover the features/////
         function reset(){ 
+            //define bounds of path features
             var bounds = path.bounds(mapData),
                 topLeft = bounds[0],
                 bottomRight = bounds[1];
 
-            console.log(bounds);
+            //define width of svg
+            svgWidth = bottomRight[0] - topLeft[0];
+
+            console.log(svgWidth);
+
+            //define circle size as a portion of svg width
+            circleSize = 0.1 * svgWidth;
+
+            //        //scale for circle
+            var scale = d3.scale.sqrt()
+                .domain(d3.extent(areas))
+                .range([5, circleSize]);
 
             //set svg position
-            svg.attr("width", bottomRight[0] - topLeft[0])
+            svg.attr("width", svgWidth)
                 .attr("height", bottomRight[1] - topLeft[1])
                 .style("left", topLeft[0] + "px")
                 .style("top", topLeft[1] + "px");
@@ -177,9 +182,8 @@ function render(width) {
 
             g.selectAll("circle")
               .data(mapData.features)
-                .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';});
-
-
+                .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
+                .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); });
 
         }//end of reset
 
