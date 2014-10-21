@@ -133,8 +133,7 @@ function render(width) {
             .selectAll("circle")
                   .data(topojson.feature(ca, ca.objects.subunits).features)
                 .enter().append("circle")
-                  //   .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
-                  // .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); })
+                //necessary attributes are filled by reset function below
             .style("fill", function(d){ 
                 return color(fluByCounty[d.properties.name]);
               })
@@ -159,7 +158,7 @@ function render(width) {
             console.log(svgWidth);
 
             //define circle size as a portion of svg width
-            circleSize = 0.1 * svgWidth;
+            circleSize = 0.07 * svgWidth;
 
             //        //scale for circle
             var scale = d3.scale.sqrt()
@@ -186,6 +185,63 @@ function render(width) {
                 .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); });
 
         }//end of reset
+
+
+        ///////threshold key//////
+    
+    //define scales
+    var y = d3.scale.linear()
+        .domain([0, max]) //input data
+        .range([0, width/4]); //height of the key
+
+    var legend = d3.select("#map").append("svg")
+        .attr("width", "300")
+        .attr("height", "500")
+        ;
+
+
+    //create group for color bar and append data
+    var colorBar = legend.append("g")
+        .attr("class", "key")
+        .attr("transform", "translate(60, 75)")
+        .selectAll("rect")
+        .data(color.range().map(function(col) {
+            var d = color.invertExtent(col);
+            if (d[0] == null) d[0] = y.domain()[0];
+            if (d[1] == null) d[1] = y.domain()[1];
+            return d;
+        }));
+
+
+    //create color rects
+    colorBar.enter()
+        .append("rect")
+            .attr("width", 15)
+            .attr("y", function(d) { 
+                return y(d[0]); })
+            .attr("height", function(d) { return y(d[1]) - y(d[0]); })
+            .attr("fill", function(d) { return color(d[0]); });
+
+    //get array of legend domain
+    var colorDomain = color.domain();
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("right")
+        .tickSize(16)
+        .tickValues([colorDomain[0], colorDomain[1], colorDomain[2], colorDomain[3]])
+        .tickFormat(percentFormat);
+
+    //console.log(format(max));
+
+    //add label
+    d3.select(".key")
+        .call(yAxis)
+        .append("text")
+        .attr("y", -5)
+        .attr("class", "label")
+        .text("Percent of Vaccine Left Over")
+        ;
 
 
         //Leaflet implements the geometric transformation
