@@ -1,0 +1,215 @@
+<html>
+<head>
+<title></title>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.js"></script>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="//d3js.org/topojson.v1.min.js"></script>
+<script src="//d3js.org/colorbrewer.v1.min.js"></script>
+<script src="//d3js.org/queue.v1.min.js"></script>
+
+<style>
+
+.subunit.San.Benito,
+.subunit.Lake{
+	fill: gray;
+}
+
+.subunit {
+	fill: steelblue;
+	stroke: gray;
+	stroke-width: 1px;
+}
+
+.subunit:hover {
+	opacity: 0.7;
+	fill: lightyellow;
+
+}
+
+.exterior-boundary {
+	fill: none;
+	stroke: black;
+	stroke-linejoin: round;
+	stroke-width: 1px;
+}
+
+div.tooltip {
+	position: absolute;
+	text-align: center;
+	width: 100px;
+	padding: 2px;
+	font: 12px sans-serif;
+	color: white;
+	background: black;
+	border: 0px;
+	border-radius: 8px;
+	pointer-events: none;
+}
+
+.key {
+	font-size: 9px;
+}
+
+.key path {
+	display: none;
+}
+
+.key line {
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+</style>
+
+</head>
+<body>
+	<h1>Total 1033 Equipment By Value and County</h1>
+	<div id = "map"></div>
+
+<script>
+
+	var width = 650,
+		height = 600;
+
+	var  projection = d3.geo.mercator()
+		.scale(1000 * 2)
+		.center([-120, 36])
+		.translate([width/4, height/2]);
+
+	var path = d3.geo.path()
+		.projection(projection);
+
+	var svg = d3.select("#map").append("svg")
+		.attr("width", width)
+		.attr("height", height);
+
+	//global for console
+	var myObj = {};
+
+	
+	//format for tooltip
+	var format = function(d){
+		if (d) { return (d3.format("$,f"))(d) }
+		else { return "None"}
+
+		}
+
+	queue()
+		.defer(d3.json, "caCountiesTopoSimple.json")
+		.defer(d3.csv, "defense-csv.csv")
+		.await(ready);
+
+	var rateByCounty = {};
+
+	function ready(error, ca, defense){
+		//create a js object which maps county names to values
+		defense.forEach(function(d) { 
+			rateByCounty[d.county] = +d.value;})
+
+		var max = d3.max(defense, function(d) { return +d.value; });
+
+		//function to assign colors to shapes
+		var color = d3.scale.threshold() //colorscale
+			.domain([1000000, 5000000, 10000000, 15000000, 20000000])
+			.range(colorbrewer.Greens[6]);
+
+		//format for legend
+		var truncate = function(d) { 
+				return '$' + (d/1000000) + " m";
+			};
+
+		svg.append("path")
+			.datum(topojson.feature(ca, ca.objects.subunits))
+			.attr("class", "land")
+			.attr("d", path);
+
+		//bind feature data to the map
+		svg.selectAll(".subunit")
+			  .data(topojson.feature(ca, ca.objects.subunits).features)
+			.enter().append("path")
+			.attr("class", function(d) { return "subunit " + d.properties.name; })
+			.attr("d", path)
+			  //get color from csv call
+			  .style("fill", function(d){ 
+			  	var string = d.properties.name;
+			  	upper = string.toUpperCase();
+			  	return color(rateByCounty[upper]);
+			  })
+			.on("mouseover", function(d){ //tooltip
+				div.transition()
+					.duration(200)
+					.style("opacity", .9);
+				div.html(d.properties.fullName + "<p>" + "Total Value: " + format(rateByCounty[d.properties.name.toUpperCase()]))//warning this is an approximation
+					.style("left", (d3.event.pageX) + 10 + "px")
+					.style("top", (d3.event.pageY - 30) + "px"); 
+			})
+			.on("mouseout", function(d) { 
+				div.transition()
+					.duration(500)
+					.style("opacity", 0.0);
+			});
+
+		//exterior border
+		svg.append("path")
+			.datum(topojson.mesh(ca, ca.objects.subunits, function(a, b) { return a === b;}))
+			.attr("d", path)
+			.attr("class", "exterior-boundary");
+
+		//tooltip declaration
+		var div = d3.select("#map").append("div")
+			.attr("class", "tooltip")
+			.style("opacity", 0);
+
+	//key position encoding for legend
+	var y = d3.scale.linear()
+		.domain([0, max]) //input data
+		.range([0, 150]); //height of the key
+
+
+	var colorBar = svg.append("g")
+		.attr("class", "key")
+		.attr("transform", "translate(" + (.3 * width) + "," + (.05 * height) + ")")
+		.selectAll("rect")
+		.data(color.range().map(function(col) {
+			var d = color.invertExtent(col);
+			if (d[0] == null) d[0] = y.domain()[0];
+			if (d[1] == null) d[1] = y.domain()[1];
+			return d;
+		}));
+
+	//create color segments
+	colorBar.enter()
+		.append("rect")
+			.attr("width", 10)
+			.attr("y", function(d) { 
+				return y(d[0]); })
+			.attr("height", function(d) { return y(d[1]) - y(d[0]); })
+			.attr("fill", function(d) { return color(d[1]); });
+
+	//get array of legend domain
+	var colorDomain = color.domain();
+
+	var yAxis = d3.svg.axis()
+	    .scale(y)
+	    .orient("right")
+	    .tickSize(10)
+	    .tickValues([colorDomain[0], colorDomain[2], colorDomain[4]])
+	    .tickFormat(truncate);
+
+	console.log(format(max));
+
+	d3.select(".key")
+		.call(yAxis)
+		.append("text")
+		.attr("y", -10)
+		.text("Cash Value of Gear")
+		;
+
+	//end of ready function
+	}
+
+</script>
+
+</body>
+</html>
