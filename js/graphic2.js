@@ -33,7 +33,7 @@ function render(width) {
         center: [37.77, -122.42],
         zoom: 7,
         scrollWheelZoom: false}) //lat, long, not long, lat
-        .addLayer(new L.TileLayer("http://api.tiles.mapbox.com/v4/nbclocal.i9h78mch/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibmJjbG9jYWwiLCJhIjoiS3RIUzNQOCJ9.le_LAljPneLpb7tBcYbQXQ"));
+        .addLayer(new L.TileLayer("http://api.tiles.mapbox.com/v4/nbclocal.k38kb5c1/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibmJjbG9jYWwiLCJhIjoiS3RIUzNQOCJ9.le_LAljPneLpb7tBcYbQXQ"));
 
     //add an svg to the overlay pane
     var svg = d3.select(map.getPanes().overlayPane).append("svg"),
@@ -151,11 +151,12 @@ function render(width) {
 
             //define circle size as a portion of svg width
             circleSize = 0.07 * svgWidth;
+            minCircleSize = .07 * circleSize;
 
             //        //scale for circle
             var scale = d3.scale.sqrt()
                 .domain(d3.extent(areas))
-                .range([5, circleSize]);
+                .range([minCircleSize, circleSize]);
 
             //set svg position
             svg.attr("width", svgWidth)
@@ -195,7 +196,7 @@ function render(width) {
     //create group for color bar and attach to second svg
     var colorBar = legend.append("g")
         .attr("class", "key")
-        .attr("transform", "translate(60, 75)")
+        .attr("transform", "translate(15, 90)")
         .selectAll("rect")
         .data(color.range().map(function(col) {
             var d = color.invertExtent(col);
@@ -229,9 +230,10 @@ function render(width) {
     d3.select(".key")
         .call(yAxis)
         .append("text")
-        .attr("y", -5)
+        .attr("y", -3)
+        //.attr("x", -30)
         .attr("class", "label")
-        .text("Percent of Vaccine Left Over")
+        .text("Vaccine Left Over")
         ;
 
 
