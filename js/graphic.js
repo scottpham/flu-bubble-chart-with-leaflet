@@ -1,16 +1,4 @@
-var pymChild = null,
-    mobileThreshold = 500, //set to 500 for testing
-    aspect_width = 4,
-    aspect_height = 10;
-
 var $map = $('#map');
-
-var margin = {
-    top: 10,
-    right: 10,
-    bottom: 10,
-    left: 20
-};
 
 var circleSize = 70;
 
@@ -31,89 +19,38 @@ function draw_graphic(){
         $map.empty();
         var width = $map.width();
         render(width);
-        window.onresize = draw_graphic; //very important! the key to responsiveness
+        //window.onresize = draw_graphic; //very important! the key to responsiveness
     }
 }
 
 
 function render(width) {
-    //leaflet stuff
 
-    var map = new L.Map("map", {center: [-124.19, 41.92], zoom: 4})
-        .addLayer(new L.TileLayer("http://{s}.tiles.mapbox.com/v3/examples.map-vyofok3q/{z}/{x}/{y}.png"));
+ //leaflet stuff
 
+    //make a map                        
+    var map = new L.Map("map", {
+        center: [37.77, -122.42],
+        zoom: 7,
+        scrollWheelZoom: false}) //lat, long, not long, lat
+        .addLayer(new L.TileLayer("http://api.tiles.mapbox.com/v4/nbclocal.k38kb5c1/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibmJjbG9jYWwiLCJhIjoiS3RIUzNQOCJ9.le_LAljPneLpb7tBcYbQXQ"));
+
+    //add an svg to the overlay pane
     var svg = d3.select(map.getPanes().overlayPane).append("svg"),
         g = svg.append("g").attr("class", "leaflet-zoom-hide");
 
-    d3.json("us-states.json", function(collection){
-        //code
-
-        //geo transform
-        function projectPoint(x, y) {
-            var point = map.latLngToLayerPoint(new L.LatLng(y, x));
-            this.stream.point(point.x, point.y);
-        }
-
-        //create a path to convert geojson to svg
-        var transform = d3.geo.transform({point: projectPoint}),
-            path = d3.geo.path().projection(transform);
-
-        //data join to create paths for each feature
-        var feature = g.selectAll("path")
-                .data(collection.features)
-            .enter().append("path");
-
-        //initialize the path data by setting d
-        feature.attr("d", path);
-
-        //project bounding box
-        var bounds = path.bounds(collection),
-            topLeft = bounds[0],
-            bottomRight = bounds[1];
-
-        //set svg position
-        svg.attr("width", bottomRight[0] - topLeft[0])
-            .attr("height", bottomRight[1] - topLeft[1])
-            .style("left", topLeft[0] + "px")
-            .style("top", topLeft[1] + "px");
-        g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
-    })
-
-
-
-
-
-    // d3 stuff
-
-    var height = .88 * width;
-
-    var circleSize = 0.065 * width;
-
-    var  projection = d3.geo.mercator()
-        .scale(width*4)
-        .center([-124.19, 41.92]) //exact upper left of california according to latlong.net
-        .translate([margin.left,margin.top]);
-
-    var path = d3.geo.path()
-        .projection(projection);
-
-    var svg = d3.select("#map").append("svg")
-        .attr("width", width)
-        .attr("height", height);
-
-    //global for console
-    var myObj = {};
-
+    //get data
     queue()
         .defer(d3.json, "counties.json")
-        .defer(d3.csv, "flu_percent_unused2.csv")
-        .defer(d3.csv, "2013_county.csv")
+        .defer(d3.csv, "flu_percent_unused.csv")
         .await(ready);
 
     var fluByCounty = {};
     var vacByCounty = {};
 
-    function ready(error, ca, flu, pop){
+    function ready(error, ca, flu){
+
+        ////////a bunch of non geo related stuff//////
         //maps county names to flu percentage
         flu.forEach(function(d) { 
             fluByCounty[d.county] = +d.percent_unused;});
@@ -121,8 +58,6 @@ function render(width) {
         //map county names to average vaccines
          flu.forEach(function(d) {
             vacByCounty[d.county] = +d.total;});
-
-        mapData = topojson.feature(ca, ca.objects.subunits);
         
         //max for color scale
         var max = d3.max(flu, function(d) { return +d.percent_unused; });
@@ -132,34 +67,35 @@ function render(width) {
             .domain([.1, .2, .3, .4])
             .range(colorbrewer.Blues[4]);
             
+        //shorthand for accessing topo data    
+        var mapData = topojson.feature(ca, ca.objects.subunits);
         //attach data to circle areas
         var areas = mapData.features.map(
             function(d) {return vacByCounty[d.properties.name];})
 
-        //scale for circle
-        var scale = d3.scale.sqrt()
-            .domain(d3.extent(areas))
-            .range([4, circleSize]);
+        ////////end non geo related stuff////////
 
-        //draw county shapes
-        svg.selectAll(".subunit")
-              .data(mapData.features)
-            .enter().append("path")
-            .attr("class", function(d) { return "subunit " + d.properties.name; })
-            .attr("d", path);
-              // // get color from csv call
-              // .style("fill", function(d){ 
-              //   return color(fluByCounty[d.properties.name]);
-        
-              // });
 
-        //exterior border
-        svg.append("path")
+        //create a path to convert geojson to svg
+        var transform = d3.geo.transform({point: projectPoint}),
+            path = d3.geo.path().projection(transform);
+
+        //data join to create paths for each feature
+        var feature = g.selectAll("path")
+                .data(mapData.features)
+            .enter().append("path");
+
+        //add subunits to overlay class
+        feature
+            .attr("class", function(d) { return "subunit " + d.properties.name; });
+
+        //append another path to overlay and make it the exterior
+        g.append("path")
             .datum(topojson.mesh(ca, ca.objects.subunits, function(a, b) { return a === b;}))
             .attr("d", path)
             .attr("class", "exterior-boundary");
 
-        //tooltip declaration
+         //tooltip declaration
         var div = d3.select("#map").append("div")
             .attr("class", "tooltip")
             .style("opacity", 0);
@@ -170,43 +106,97 @@ function render(width) {
             else { return "N/A"}
             }
 
+        //format for # of vaccines
+        var commaFormat = d3.format(",f")
+
+        //define tip
+        var tip = d3.tip()
+            .attr("class", 'd3-tip')
+            .offset([-10, 0])
+            .html(function(d) { return "<p>" + d.properties.fullName + "</p><p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + commaFormat(vacByCounty[d.properties.name]) + "</p>"});
+
+        g.call(tip);
+
+
+
         //circles
-        svg.append("g")
+        g.append("g")
               .attr("class", "circles")
             .selectAll("circle")
                   .data(topojson.feature(ca, ca.objects.subunits).features)
                 .enter().append("circle")
-                    .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
-                  .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); })
+                //necessary attributes are filled by reset function below
             .style("fill", function(d){ 
                 return color(fluByCounty[d.properties.name]);
               })
-                .on("mouseover", function(d){ //tooltip
-                    div.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    div.html(d.properties.fullName + "<p>% Unused: " + percentFormat(fluByCounty[d.properties.name]) + "</p><p># Vaccines Available: " + vacByCounty[d.properties.name] + "</p>"
+                .on("mouseover", tip.show)
+                .on("mouseout", tip.hide);  
 
-                    )
-                        .style("left", (d3.event.pageX) + 10 + "px")
-                        .style("top", (d3.event.pageY - 30) + "px"); 
-                })
-                .on("mouseout", function(d) { 
-                    div.transition()
-                        .duration(500)
-                        .style("opacity", 0.0);
-                });        
 
-    //key position encoding for legend
+        //fix on zoom
+        map.on("viewreset", reset);
+        reset();
+
+        ///////reposition SVG to cover the features/////
+        function reset(){ 
+            //define bounds of path features
+            var bounds = path.bounds(mapData),
+                topLeft = bounds[0],
+                bottomRight = bounds[1];
+
+            //define width of svg
+            svgWidth = bottomRight[0] - topLeft[0];
+
+            // console.log(svgWidth);
+
+            //define circle size as a portion of svg width
+            circleSize = 0.07 * svgWidth;
+            minCircleSize = .07 * circleSize;
+
+            //        //scale for circle
+            var scale = d3.scale.sqrt()
+                .domain(d3.extent(areas))
+                .range([minCircleSize, circleSize]);
+
+            //set svg position
+            svg.attr("width", svgWidth)
+                .attr("height", bottomRight[1] - topLeft[1])
+                .style("left", topLeft[0] + "px")
+                .style("top", topLeft[1] + "px");
+
+            g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+
+            //initialize the path data by setting d
+            feature.attr("d", path);
+
+            //select the exterior boundary and reset it
+            g.select(".exterior-boundary").attr("d", path);
+
+            g.selectAll("circle")
+              .data(mapData.features)
+                .attr("transform", function(d) { return 'translate(' + path.centroid(d) + ')';})
+                .attr("r", function(d) { return scale(vacByCounty[d.properties.name]); });
+
+        }//end of reset
+
+
+        ///////threshold key//////
+    
+    //define scales
     var y = d3.scale.linear()
         .domain([0, max]) //input data
         .range([0, width/4]); //height of the key
 
+    //define a second svg for the key and attach it to the map div
+    var legend = d3.select("#map").append("svg")
+        .attr("width", "300")
+        .attr("height", "500")
+        ;
 
-    //create group for color bar and append data
-    var colorBar = svg.append("g")
+    //create group for color bar and attach to second svg
+    var colorBar = legend.append("g")
         .attr("class", "key")
-        .attr("transform", "translate(" + (.4 * width) + "," + margin.top * 2 + ")") //position w/in svg
+        .attr("transform", "translate(15, 90)")
         .selectAll("rect")
         .data(color.range().map(function(col) {
             var d = color.invertExtent(col);
@@ -214,7 +204,6 @@ function render(width) {
             if (d[1] == null) d[1] = y.domain()[1];
             return d;
         }));
-
 
     //create color rects
     colorBar.enter()
@@ -237,37 +226,42 @@ function render(width) {
 
     //console.log(format(max));
 
+
+    d3.select(".key")
+        .call(yAxis)
+
+
+    div.class
+
     //add label
     d3.select(".key")
         .call(yAxis)
         .append("text")
-        .attr("y", -5)
+        .attr("y", -3)
+        //.attr("x", -30)
         .attr("class", "label")
-        .text("Percent of Vaccine Left Over")
+        .text("Vaccine Left Over")
         ;
-    //end of ready function
-    }
 
-    //send height to parent AFTER chart is built
-    if (pymChild) {
-        pymChild.sendHeightToParent();
-    }
 
-//end function render    
-}
+
+        //Leaflet implements the geometric transformation
+        function projectPoint(x, y) {
+            var point = map.latLngToLayerPoint(new L.LatLng(y, x));
+            this.stream.point(point.x, point.y);
+        }
+
+    }//end of ready
+}//end of render
+
+
 /*
  * NB: Use window.load instead of document.ready
  * to ensure all images have loaded
  */
 $(window).load(function() {
-    if (Modernizr.svg){
-        pymChild = new pym.Child({
-            renderCallback: draw_graphic()
-        });
-    }
-    else { pymChild = new pym.Child();
-    }
-})
+    draw_graphic();
+});
 
 
 
